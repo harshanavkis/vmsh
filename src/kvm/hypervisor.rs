@@ -413,7 +413,7 @@ impl Hypervisor {
         datamatch: Option<u64>,
     ) -> Result<EventFd> {
         let eventfd = try_with!(EventFd::new(EFD_NONBLOCK), "cannot create event fd");
-        info!(
+        debug!(
             "ioeventfd {:?}, guest phys addr {:?}",
             eventfd.as_raw_fd(),
             guest_addr
@@ -457,7 +457,7 @@ impl Hypervisor {
     /// param `gsi`: pin on the irqchip to be toggled by fd events
     pub fn irqfd(&self, gsi: u32) -> Result<EventFd> {
         let eventfd = try_with!(EventFd::new(EFD_NONBLOCK), "cannot create event fd");
-        info!("irqfd {:?}, interupt gsi/nr {:?}", eventfd.as_raw_fd(), gsi);
+        debug!("irqfd {:?}, interupt gsi/nr {:?}", eventfd.as_raw_fd(), gsi);
         let hv_eventfd = self.transfer(vec![eventfd.as_raw_fd()].as_slice())?[0];
 
         let irqfd = kvmb::kvm_irqfd {
@@ -590,7 +590,7 @@ fn find_vm_fd(handle: &PidHandle) -> Result<(Vec<RawFd>, Vec<VCPU>)> {
                 "cannot parse number {}",
                 parts[0]
             );
-            info!("vcpu {} fd {}", idx, fd.fd_num);
+            debug!("vcpu {} fd {}", idx, fd.fd_num);
             vcpu_fds.push(VCPU {
                 idx,
                 fd_num: fd.fd_num,
