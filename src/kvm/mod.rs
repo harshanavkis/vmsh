@@ -1,6 +1,6 @@
 pub mod fd_transfer;
 pub mod hypervisor;
 pub mod ioctls;
+pub mod ioregionfd;
 pub mod memslots;
 pub mod tracee;
-pub mod ioregionfd;
