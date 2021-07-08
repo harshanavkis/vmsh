@@ -88,6 +88,7 @@ configure-linux: clone-linux
     {{kernel_fhs}} "scripts/config --set-val DEBUG_DRIVER y"
     {{kernel_fhs}} "scripts/config --set-val KVM y"
     {{kernel_fhs}} "scripts/config --set-val KVM_INTEL y"
+    {{kernel_fhs}} "scripts/config --set-val KVM_AMD y"
     {{kernel_fhs}} "scripts/config --set-val BPF_SYSCALL y"
     {{kernel_fhs}} "scripts/config --set-val IKHEADERS y"
     {{kernel_fhs}} "scripts/config --set-val IKCONFIG_PROC y"
