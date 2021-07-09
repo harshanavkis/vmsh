@@ -229,6 +229,66 @@ fn mmio_exit_handler_thread(
     Ok(try_with!(res, "cannot spawn mmio exit handler thread"))
 }
 
+use crate::kvm::ioctls::{ioregionfd_cmd, Cmd};
+use crate::kvm::hypervisor::IoRegionFd;
+fn ioregion_event_loop(
+    ioregionfd: &IoRegionFd,
+    should_stop: &Arc<AtomicBool>,
+    device_space: &DeviceSpace,
+    device_ready: &Arc<DeviceReady>,
+                       ) -> Result<()> {
+    let mut mmio_mgr = try_with!(device_space.mmio_mgr.lock(), "cannot lock mmio manager");
+    device_ready.notify()?;
+
+    loop {
+        let cmd = try_with!(ioregionfd.read(), "foo");
+        println!("{:?}, {:?}, response={}: {:?}", cmd.info.cmd(), cmd.info.size(), cmd.info.is_response(), cmd);
+        mmio_mgr.handle_ioregion_rw(ioregionfd, cmd)?;
+
+        if should_stop.load(Ordering::Relaxed) {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// see handle_mmio_exits
+fn ioregion_handler_thread(
+    vm: &Arc<Hypervisor>,
+    device: DeviceSpace,
+    err_sender: &SyncSender<()>,
+    device_ready: &Arc<DeviceReady>,
+) -> Result<InterrutableThread<()>> {
+    let device_ready = Arc::clone(device_ready);
+    let vm = Arc::clone(vm);
+    info!("mmio dev attached");
+
+    vm.prepare_thread_transfer()?;
+
+    let res = InterrutableThread::spawn(
+        "ioregion-handler",
+        err_sender,
+        move |should_stop: Arc<AtomicBool>| {
+            vm.finish_thread_transfer()?;
+
+            info!("mmio dev attached");
+
+            let ioregionfd = try_with!(vm.ioregionfd(), "foo");
+            vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
+            try_with!(ioregion_event_loop(&ioregionfd, &should_stop, &device, &device_ready), "foo");
+
+            // drop remote resources like ioeventfd before disowning traced process.
+            drop(device);
+
+            // we need to return ptrace control before returning to the main thread
+            vm.prepare_thread_transfer()?;
+            Ok(())
+        },
+    );
+
+    Ok(try_with!(res, "cannot spawn mmio exit handler thread"))
+}
+
 pub fn create_devices(
     vm: &Arc<Hypervisor>,
     err_sender: &SyncSender<()>,
@@ -247,12 +307,22 @@ pub fn create_devices(
     if log_enabled!(Level::Debug) {
         threads.push(blkdev_monitor_thread(&device, err_sender)?);
     }
-    threads.push(mmio_exit_handler_thread(
-        vm,
-        device,
-        err_sender,
-        &device_ready,
-    )?);
+    let use_ioregion = false;
+    if !use_ioregion {
+        threads.push(mmio_exit_handler_thread(
+            vm,
+            device,
+            err_sender,
+            &device_ready,
+        )?);
+    } else {
+        threads.push(ioregion_handler_thread(
+            vm,
+            device,
+            err_sender,
+            &device_ready,
+        )?);
+    }
 
     device_ready.wait()?;
 
