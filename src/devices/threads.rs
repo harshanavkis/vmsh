@@ -252,6 +252,7 @@ fn ioregion_event_loop(
     Ok(())
 }
 
+use crate::devices;
 /// see handle_mmio_exits
 fn ioregion_handler_thread(
     vm: &Arc<Hypervisor>,
@@ -273,7 +274,7 @@ fn ioregion_handler_thread(
 
             info!("mmio dev attached");
 
-            let ioregionfd = try_with!(vm.ioregionfd(), "foo");
+            let ioregionfd = try_with!(vm.ioregionfd(devices::MMIO_MEM_START, devices::MEM_32BIT_GAP_SIZE as usize), "foo");
             vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
             try_with!(ioregion_event_loop(&ioregionfd, &should_stop, &device, &device_ready), "foo");
 
@@ -307,7 +308,7 @@ pub fn create_devices(
     if log_enabled!(Level::Debug) {
         threads.push(blkdev_monitor_thread(&device, err_sender)?);
     }
-    let use_ioregion = false;
+    let use_ioregion = true;
     if !use_ioregion {
         threads.push(mmio_exit_handler_thread(
             vm,
