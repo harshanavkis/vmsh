@@ -23,6 +23,8 @@ use vm_memory::{GuestMemoryMmap, GuestRegionMmap};
 
 pub use crate::devices::threads::create_devices;
 
+pub const USE_IOREGIONFD: bool = true;
+
 // Where BIOS/VGA magic would live on a real PC.
 #[allow(dead_code)] // FIXME
 const EBDA_START: u64 = 0x9fc00;
