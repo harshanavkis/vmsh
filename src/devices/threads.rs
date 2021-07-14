@@ -276,7 +276,7 @@ fn ioregion_handler_thread(
             info!("mmio dev attached");
 
             // devices::MEM_32BIT_GAP_SIZE as usize
-            let ioregionfd = try_with!(vm.ioregionfd(devices::MMIO_MEM_START, 0x2000), "foo");
+            //let ioregionfd = try_with!(vm.ioregionfd(devices::MMIO_MEM_START, 0x2000), "foo");
             vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
             try_with!(ioregion_event_loop(&ioregionfd, &should_stop, &device, &device_ready), "foo");
 
