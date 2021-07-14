@@ -232,19 +232,30 @@ fn mmio_exit_handler_thread(
 
 use crate::kvm::ioctls::{ioregionfd_cmd, Cmd};
 use crate::kvm::hypervisor::IoRegionFd;
+use simple_error::simple_error;
 fn ioregion_event_loop(
-    ioregionfd: &IoRegionFd,
     should_stop: &Arc<AtomicBool>,
     device_space: &DeviceSpace,
     device_ready: &Arc<DeviceReady>,
                        ) -> Result<()> {
     let mut mmio_mgr = try_with!(device_space.mmio_mgr.lock(), "cannot lock mmio manager");
+    let block_ioregionfd = {
+        let block = try_with!(device_space.blkdev.lock(), "foo");
+        block.ioregionfd.ok_or(simple_error!("foo"))?
+    };
+    let console_ioregionfd = {
+        let console = try_with!(device_space.console.lock(), "foo");
+        console.ioregionfd.ok_or(simple_error!("foo"))?
+    };
     device_ready.notify()?;
 
     loop {
-        let cmd = try_with!(ioregionfd.read(), "foo");
         //println!("{:?}, {:?}, response={}: {:?}", cmd.info.cmd(), cmd.info.size(), cmd.info.is_response(), cmd);
-        mmio_mgr.handle_ioregion_rw(ioregionfd, cmd)?;
+        let cmd = try_with!(block_ioregionfd.read(), "foo");
+        mmio_mgr.handle_ioregion_rw(&block_ioregionfd, cmd)?;
+        let cmd = try_with!(console_ioregionfd.read(), "foo");
+        mmio_mgr.handle_ioregion_rw(&console_ioregionfd, cmd)?;
+        // TODO same for console
 
         if should_stop.load(Ordering::Relaxed) {
             break;
@@ -278,7 +289,7 @@ fn ioregion_handler_thread(
             // devices::MEM_32BIT_GAP_SIZE as usize
             //let ioregionfd = try_with!(vm.ioregionfd(devices::MMIO_MEM_START, 0x2000), "foo");
             vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
-            try_with!(ioregion_event_loop(&ioregionfd, &should_stop, &device, &device_ready), "foo");
+            try_with!(ioregion_event_loop(&should_stop, &device, &device_ready), "foo");
 
             // drop remote resources like ioeventfd before disowning traced process.
             drop(device);
