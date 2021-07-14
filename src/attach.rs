@@ -31,11 +31,13 @@ pub fn attach(opts: &AttachOptions) -> Result<()> {
 
     signal_handler::setup(&sender)?;
 
+    println!("spawn stage1");
     let stage1 = try_with!(
         spawn_stage1(opts.ssh_args.as_str(), &opts.command, &sender),
         "stage1 failed"
     );
 
+    println!("create devices");
     let threads = try_with!(
         create_devices(&vm, &sender, &opts.backing),
         "cannot create devices"

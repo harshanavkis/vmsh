@@ -69,6 +69,7 @@ fn event_thread(
         let blkdev = try_with!(blkdev.lock(), "cannot unlock thread");
         blkdev.irq_ack_handler.clone()
     };
+    log::warn!("event thread started");
 
     let res = InterrutableThread::spawn(
         "event-manager",
@@ -242,7 +243,7 @@ fn ioregion_event_loop(
 
     loop {
         let cmd = try_with!(ioregionfd.read(), "foo");
-        println!("{:?}, {:?}, response={}: {:?}", cmd.info.cmd(), cmd.info.size(), cmd.info.is_response(), cmd);
+        //println!("{:?}, {:?}, response={}: {:?}", cmd.info.cmd(), cmd.info.size(), cmd.info.is_response(), cmd);
         mmio_mgr.handle_ioregion_rw(ioregionfd, cmd)?;
 
         if should_stop.load(Ordering::Relaxed) {
@@ -306,9 +307,9 @@ pub fn create_devices(
     let device_ready = Arc::new(DeviceReady::new());
     let mut threads = vec![event_thread(event_manager, &device, err_sender)?];
 
-    if log_enabled!(Level::Debug) {
+    //if log_enabled!(Level::Debug) {
         threads.push(blkdev_monitor_thread(&device, err_sender)?);
-    }
+    //}
     if !devices::USE_IOREGIONFD {
         threads.push(mmio_exit_handler_thread(
             vm,
