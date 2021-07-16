@@ -277,29 +277,29 @@ fn ioregion_handler_thread(
     device_ready: &Arc<DeviceReady>,
 ) -> Result<InterrutableThread<()>> {
     let device_ready = Arc::clone(device_ready);
-    let vm = Arc::clone(vm);
+    //let vm = Arc::clone(vm);
     info!("mmio dev attached");
 
-    vm.prepare_thread_transfer()?;
+    //vm.prepare_thread_transfer()?;
 
     let res = InterrutableThread::spawn(
         "ioregion-handler",
         err_sender,
         move |should_stop: Arc<AtomicBool>| {
-            vm.finish_thread_transfer()?;
+            //vm.finish_thread_transfer()?;
 
             info!("mmio dev attached");
 
             // devices::MEM_32BIT_GAP_SIZE as usize
             //let ioregionfd = try_with!(vm.ioregionfd(devices::MMIO_MEM_START, 0x2000), "foo");
-            vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
+            //vm.resume()?; // TODO make ioregionfd() independent of resumed/stopped
             try_with!(ioregion_event_loop(&should_stop, &device_ready, mmio_mgr, device), "foo");
 
             // drop remote resources like ioeventfd before disowning traced process.
             //drop(device);
 
             // we need to return ptrace control before returning to the main thread
-            vm.prepare_thread_transfer()?;
+            //vm.prepare_thread_transfer()?;
             Ok(())
         },
     );
@@ -322,9 +322,9 @@ pub fn create_devices(
     let device_ready = Arc::new(DeviceReady::new());
     let mut threads = vec![event_thread(event_manager, &device, err_sender)?];
 
-    //if log_enabled!(Level::Debug) {
+    if log_enabled!(Level::Debug) {
         threads.push(blkdev_monitor_thread(&device, err_sender)?);
-    //}
+    }
     if !devices::USE_IOREGIONFD {
         threads.push(mmio_exit_handler_thread(
             vm,
@@ -333,7 +333,7 @@ pub fn create_devices(
             &device_ready,
         )?);
     } else {
-        //vm.resume()?;
+        vm.resume()?;
         threads.push(try_with!(ioregion_handler_thread(
             vm,
             device.blkdev,
